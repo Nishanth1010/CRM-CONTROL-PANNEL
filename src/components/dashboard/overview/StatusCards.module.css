@@ -1,0 +1,36 @@
+.status-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  
+  .card-container {
+    flex: 1 1 calc(33.333% - 16px);
+    max-width: calc(33.333% - 16px);
+    transition: transform 0.2s;
+  }
+  
+  .card-container:hover {
+    transform: scale(1.05);
+  }
+  
+  @media (max-width: 768px) {
+    .card-container {
+      flex: 1 1 calc(50% - 16px);
+      max-width: calc(50% - 16px);
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .card-container {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+  }
+  

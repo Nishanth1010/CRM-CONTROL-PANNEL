@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id              Int            @id @default(autoincrement())
+  name            String
+  domain          String         @unique
+  logoUrl         String?
+  gstin           String // GSTIN for the company
+  cin             String // CIN number for the company
+  registerAddress String // Registered address
+  CompanyAccess   CompanyAccess?
+
+  mobile       String // Mobile number
+  email        String // Company email address
+  licenseCount Int    @default(1) // Number of licenses for the company
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  admins    Admin[] // One-to-many relation with Admin
+  employees Employee[] // One-to-many relation with Employee
+  leads     Lead[] // One-to-many relation with Leads
+  customers Customer[] // One-to-many relation with Customers
+  products  Product[] // One-to-many relation with Products
+
+  Deal Deal[]
+
+  Source Source[]
+
+  Category Category[]
+}
+
+model Admin {
+  id                  Int         @id @default(autoincrement())
+  email               String      @unique
+  password            String // Admin password for login
+  name                String
+  profileImg          String? // Profile image URL for Admin
+  company             Company     @relation(fields: [companyId], references: [id])
+  companyId           Int
+  accessLevel         AccessLevel @default(ALL_ACCESS) // Access level field with default as ALL_ACCESS
+  isActive            Boolean?    @default(true) // Account active status
+  failedLoginAttempts Int?        @default(0) // Track failed login attempts
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+}
+
+model Otp {
+  id          Int      @id @unique @default(autoincrement())
+  admin_id    Int?
+  employee_id Int?
+  otp_code    String
+  email       String   @unique
+  expires_at  DateTime
+  verified    Boolean  @default(false)
+  created_at  DateTime @default(now())
+
+}
+
+model Employee {
+  id                  Int         @id @default(autoincrement())
+  email               String      @unique
+  password            String // Employee password for login
+  name                String
+  profileImg          String? // Profile image URL for Employee
+  company             Company     @relation(fields: [companyId], references: [id])
+  companyId           Int
+  isActive            Boolean?    @default(true) // Account active status
+  failedLoginAttempts Int         @default(0) // Track failed login attempts
+  leads               Lead[] // Employees can manage leads
+  accessLevel         AccessLevel
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  AMS AMS[]
+
+
+  Payment Payment[]
+}
+
+model Lead {
+  id               Int         @id @default(autoincrement())
+  name             String
+  email            String?
+  phone            String
+  designation      String? // Lead's designation in their organizatation
+  company          Company     @relation(fields: [companyId], references: [id])
+  companyId        Int // To associate lead with a company (tenant)
+  companyName      String?
+  place            String?
+  employee         Employee?   @relation(fields: [employeeId], references: [id])
+  employeeId       Int? // Which employee is managing this lead
+  source           Source?     @relation(fields: [sourceId], references: [id]) // Source of the lead (e.g., "website", "email", "phone")
+  sourceId         Int? // Source ID for the lead
+  followups        Followup[] // Leads can have follow-ups
+  customer         Customer? // Once converted, associate with a customer
+  products         Product[] // Many-to-many relation with Product
+  description      String? // Description of the lead
+  status           LeadStatus? // Lead status (e.g., "new", "in-progress", "customer", "rejected")
+  priority         String // Lead priority (e.g., "low", "medium", "high")
+  nextFollowupDate DateTime
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+model Followup {
+  id               Int      @id @default(autoincrement())
+  nextFollowupDate DateTime
+  lastRequirement  String
+  status           String // Status of the follow-up (e.g., "in-progress", "closed")
+  lead             Lead     @relation(fields: [leadId], references: [id])
+  leadId           Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id                   String    @id @default(cuid()) // Unique ID for the customer
+  customerName         String // Customer name
+  category             Category? @relation(fields: [categoryId], references: [id]) // Category of the customer
+  categoryId           Int?
+  email                String    @unique // Unique email address
+  address              String // Address with a maximum length of 30 characters
+  stateDistrictPin     String // State, district, and PIN (comma-separated)
+  gstNumber            String? // GST number (optional)
+  cinNumber            String? // CIN number (optional)
+  businessLegalName    String // Name of the business lead
+  authorizedPersonName String // Name of the authorized account person
+  mobileNumber         String // Mobile number
+  whatsappNumber       String // WhatsApp number
+
+  // Mandatory relation with Company
+  company   Company @relation(fields: [companyId], references: [id])
+  companyId Int
+
+  // Optional relation with Lead
+  lead   Lead? @relation(fields: [leadId], references: [id])
+  leadId Int?  @unique
+
+  createdAt DateTime @default(now()) // Timestamp for record creation
+  updatedAt DateTime @updatedAt // Timestamp for last update
+
+  Deal Deal[]
+
+  AMS AMS[]
+}
+
+model Category {
+  id           Int     @id @default(autoincrement())
+  categoryName String
+  company      Company @relation(fields: [companyId], references: [id])
+  companyId    Int
+
+  Customer Customer[]
+}
+
+model Deal {
+  id                Int    @id @default(autoincrement())
+  dealID            String @unique
+  requirement       String
+  dealValue         Float
+  dealApprovalValue Float
+  advancePayment    Float
+  balanceAmount     Float
+  
+  // Relation with Customer
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId String
+
+  // Relation with Company
+  company   Company @relation(fields: [companyId], references: [id])
+  companyId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Payment Payment[]
+}
+
+model Payment {
+  id          Int      @id @default(autoincrement())
+  amount      Float
+  paymentDate DateTime
+  paymentType String
+  remarks     String?
+  createdBy   Employee? @relation(fields: [createdById], references: [id])
+  createdById Int? // Employee who created the payment record
+  deal        Deal     @relation(fields: [dealId], references: [id])
+  dealId      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  price       Float
+  description String?
+  amsInterval Int? // Interval in days for AMS
+  company     Company  @relation(fields: [companyId], references: [id])
+  companyId   Int // Products belong to a company (tenant)
+  leads       Lead[] // Many-to-many relation with Lead
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  AMS AMS[]
+}
+
+model Source {
+  id        Int      @id @default(autoincrement())
+  source    String
+  company   Company  @relation(fields: [companyId], references: [id])
+  companyId Int // Products belong to a company (tenant)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Lead Lead[]
+}
+
+model AMS {
+  id         Int       @id @default(autoincrement())
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  customerId String
+  product    Product   @relation(fields: [productId], references: [id])
+  productId  Int
+  visitDate  DateTime
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+  employeeId Int? // Which employee is managing this lead
+  status     AMSStatus @default(SCHEDULED)
+  amsCost    Float
+  companyId  String
+}
+
+enum AMSStatus {
+  SCHEDULED
+  COMPLETED
+}
+
+model Enquiry {
+  id             Int      @id @default(autoincrement())
+  companyName    String
+  userName       String
+  phone          String   @db.VarChar(15)
+  alternatePhone String?  @db.VarChar(15) // Optional field
+  email          String   @unique
+  address        String
+  website        String? // Optional field
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model UpdatePassword {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum LeadStatus {
+  NEW
+  IN_PROGRESS
+  CUSTOMER
+  REJECTED
+}
+
+// Define AccessLevel Enum
+enum AccessLevel {
+  ALL_ACCESS
+  LEADS
+  FOLLOW_UPS
+  CUSTOMER
+  DEALS
+  AMS
+  ADMIN
+}
+
+enum CompanyAccess {
+  LEADS
+  CUSTOMER
+  AMS
+  FULL
+}
